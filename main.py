@@ -1,5 +1,6 @@
 import pygame
 import threading
+import time
 from network import Network
 from maze import generate_maze
 
@@ -45,8 +46,9 @@ class MazeGame:
             y_offset += 30
 
         # Ready button
+        button_color = (0, 128, 0) if not self.local_ready else (128, 128, 128)
         ready_button = pygame.Rect(SCREEN_WIDTH // 2 - 50, SCREEN_HEIGHT // 2 + 100, 100, 40)
-        pygame.draw.rect(self.screen, (0, 255, 0), ready_button)
+        pygame.draw.rect(self.screen, button_color, ready_button)
         button_text = font.render("Ready", True, (0, 0, 0))
         self.screen.blit(button_text, (ready_button.x + 20, ready_button.y + 5))
 
@@ -99,6 +101,17 @@ class MazeGame:
                         self.local_ready = True
                         self.network.broadcast({"type": "ready", "name": self.player_name})
             self.clock.tick(30)
+
+        self.countdown()
+
+    def countdown(self):
+        font = pygame.font.Font(None, 72)
+        for i in range(3, 0, -1):
+            self.screen.fill((0, 0, 0))
+            countdown_text = font.render(f"Starting in {i}...", True, (255, 255, 255))
+            self.screen.blit(countdown_text, (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2))
+            pygame.display.flip()
+            time.sleep(1)
 
     def game_loop(self):
         while self.running:

@@ -20,6 +20,8 @@ class Network:
 
             if message["type"] == "join":
                 # Add new player or update existing one
+                if addr not in self.players:
+                    print(f"New player joined: {message['name']} from {addr}")
                 self.players[addr] = {"name": message["name"], "ready": False}
             elif message["type"] == "ready":
                 # Update player ready state
