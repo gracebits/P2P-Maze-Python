@@ -15,20 +15,24 @@ class Network:
 
     def listen(self):
         while self.running:
-            data, addr = self.sock.recvfrom(1024)
-            message = json.loads(data.decode())
+            try:
+                data, addr = self.sock.recvfrom(1024)
+                message = json.loads(data.decode())
+                print(f"Received message from {addr}: {message}")  # Debug log
 
-            if message["type"] == "join":
-                # Add new player or update existing one
-                if addr not in self.players:
-                    print(f"New player joined: {message['name']} from {addr}")
-                self.players[addr] = {"name": message["name"], "ready": False}
-            elif message["type"] == "ready":
-                # Update player ready state
-                if addr in self.players:
-                    self.players[addr]["ready"] = True
+                if message["type"] == "join":
+                    if addr not in self.players:
+                        print(f"New player joined: {message['name']} from {addr}")
+                    self.players[addr] = {"name": message["name"], "ready": False}
+                elif message["type"] == "ready":
+                    if addr in self.players:
+                        self.players[addr]["ready"] = True
+                        print(f"Player {self.players[addr]['name']} is ready.")
+            except Exception as e:
+                print(f"Error in listening: {e}")
 
     def broadcast(self, message):
+        print(f"Broadcasting message: {message}")  # Debug log
         for addr in self.players.keys():
             self.sock.sendto(json.dumps(message).encode(), addr)
 

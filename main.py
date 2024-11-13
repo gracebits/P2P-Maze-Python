@@ -24,7 +24,6 @@ class MazeGame:
 
         # Player
         self.player_name = None
-        self.players = {}  # {addr: {"name": str, "ready": bool}}
         self.local_ready = False
 
         # Maze
@@ -34,18 +33,18 @@ class MazeGame:
         font = pygame.font.Font(None, 36)
         self.screen.fill((0, 0, 0))
 
-        # Display players
+        # Title
         waiting_text = font.render("Waiting for players...", True, (255, 255, 255))
         self.screen.blit(waiting_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 - 50))
 
-        # Show players in lobby
+        # Display connected players
         y_offset = 0
         for player in self.network.players.values():
             player_text = font.render(f"{player['name']} - {'Ready' if player['ready'] else 'Not Ready'}", True, (255, 255, 255))
             self.screen.blit(player_text, (SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + y_offset))
             y_offset += 30
 
-        # Ready button
+        # Ready Button
         button_color = (0, 128, 0) if not self.local_ready else (128, 128, 128)
         ready_button = pygame.Rect(SCREEN_WIDTH // 2 - 50, SCREEN_HEIGHT // 2 + 100, 100, 40)
         pygame.draw.rect(self.screen, button_color, ready_button)
@@ -119,9 +118,8 @@ class MazeGame:
                 if event.type == pygame.QUIT:
                     self.running = False
 
-            # Draw everything
+            # Draw maze (placeholder)
             self.screen.fill((0, 0, 0))
-            self.draw_maze()
             pygame.display.flip()
             self.clock.tick(30)
 
