@@ -1,6 +1,6 @@
 import pygame
 import socketio
-from config import MAZE_WIDTH, MAZE_HEIGHT, CELL_SIZE, WHITE, BLUE, RED
+from config import MAZE_WIDTH, MAZE_HEIGHT, CELL_SIZE, WHITE, BLUE, RED, SERVER_URL
 
 # Initialize Pygame
 pygame.init()
@@ -14,7 +14,7 @@ font = pygame.font.SysFont('Arial', 20)
 
 # Setup for connecting to the server
 sio = socketio.Client()
-socket_url = 'http://127.0.0.1:5000/game'  # Update this if necessary
+socket_url = f"{SERVER_URL}/game"  # Use SERVER_URL from config.py
 
 # Game lobby data
 current_room = None

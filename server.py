@@ -23,7 +23,7 @@ def index():
 @socketio.on('connect', namespace='/game')
 def on_connect():
     print("Client connected")
-    emit('update_rooms', rooms, namespace='/game')
+    emit('update_rooms', rooms, namespace='/game')  # Send available rooms to the client
 
 # Event for creating a new lobby
 @socketio.on('create_lobby', namespace='/game')
