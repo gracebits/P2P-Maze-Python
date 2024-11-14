@@ -43,15 +43,6 @@ class Server:
         self.server_socket.listen(5)
         print(f"Server listening on {self.host}:{self.port}")
 
-    def broadcast_lobby_list(self):
-        # Broadcast the list of available lobbies to all clients
-        available_lobbies = ",".join([lobby.lobby_name for lobby in self.lobbies])
-        for client_socket in self.clients.values():
-            try:
-                client_socket.sendall(available_lobbies.encode())
-            except Exception as e:
-                print(f"Error broadcasting to client: {e}")
-
     def handle_client(self, client_socket, client_address):
         # Handle client interaction
         player_name = client_socket.recv(1024).decode()
@@ -60,7 +51,8 @@ class Server:
         self.clients[client_address] = player_name
 
         # Send list of available lobbies
-        self.broadcast_lobby_list()
+        available_lobbies = ",".join([lobby.lobby_name for lobby in self.lobbies])
+        client_socket.sendall(available_lobbies.encode())
 
         while True:
             try:
@@ -70,30 +62,39 @@ class Server:
                     lobby_name = request.split(" ")[1]
                     new_lobby = Lobby(lobby_name)
                     self.lobbies.append(new_lobby)
+                    print(f"New lobby created: {lobby_name}")
                     client_socket.sendall(f"Lobby {lobby_name} created.".encode())
-                    # After creating, broadcast updated lobby list
-                    self.broadcast_lobby_list()
+                    self.broadcast_lobbies()  # Update all clients with the new lobby
                     break
                 elif request.startswith("join"):
                     lobby_name = request.split(" ")[1]
                     lobby = next((l for l in self.lobbies if l.lobby_name == lobby_name), None)
                     if lobby and not lobby.is_full():
                         lobby.add_player(player_name)
+                        print(f"Player {player_name} joined lobby {lobby_name}")
                         client_socket.sendall(f"Joined lobby {lobby_name}".encode())
-                        # After joining, broadcast updated lobby list
-                        self.broadcast_lobby_list()
+                        self.broadcast_lobbies()  # Update all clients with the new player in the lobby
                         break
                 elif request.startswith("ready"):
                     lobby_name = request.split(" ")[1]
                     lobby = next((l for l in self.lobbies if l.lobby_name == lobby_name), None)
                     if lobby:
                         lobby.set_ready(player_name)
-                        client_socket.sendall(f"{player_name} is ready in {lobby_name}".encode())
+                        print(f"Player {player_name} is ready in lobby {lobby_name}")
                         if lobby.is_ready():
                             client_socket.sendall("All players are ready. Starting game!".encode())
             except Exception as e:
                 print(f"Error: {e}")
                 break
+
+    def broadcast_lobbies(self):
+        # Broadcast the updated lobby list to all connected clients
+        available_lobbies = ",".join([lobby.lobby_name for lobby in self.lobbies])
+        for client_socket in self.clients.values():
+            try:
+                client_socket.sendall(available_lobbies.encode())
+            except Exception as e:
+                print(f"Error broadcasting to client: {e}")
 
     def start(self):
         while True:

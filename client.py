@@ -8,6 +8,7 @@ class ClientApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Lobby Client")
+        self.root.geometry("400x400")  # Set a default window size
 
         # Use values from config.py
         self.server_ip = config.SERVER_IP
@@ -52,7 +53,7 @@ class ClientApp:
     def ask_player_name(self):
         # Once connected, ask for the player name
         self.connect_frame.pack_forget()
-        
+
         self.name_frame = tk.Frame(self.root)
         self.name_label = tk.Label(self.name_frame, text="Enter your player name:")
         self.player_name_entry = tk.Entry(self.name_frame)
@@ -73,17 +74,22 @@ class ClientApp:
         # Send the player's name to the server
         self.client_socket.sendall(self.player_name.encode())
 
-        # Proceed to show lobby screen
+        # Proceed to show lobby frame
         self.name_frame.pack_forget()
         self.status_label.config(text=f"Connected as {self.player_name}")
 
-        # Show lobby frame
+        # Show the lobby frame
+        self.show_lobby_frame()
+
+    def show_lobby_frame(self):
+        # Create frame to display available lobbies and buttons for actions
         self.lobby_frame = tk.Frame(self.root)
         self.lobby_label = tk.Label(self.lobby_frame, text="Available Lobbies:")
         self.lobby_listbox = tk.Listbox(self.lobby_frame, height=5, width=50)
         self.create_lobby_button = tk.Button(self.lobby_frame, text="Create New Lobby", command=self.create_lobby)
         self.join_lobby_button = tk.Button(self.lobby_frame, text="Join Lobby", command=self.join_lobby)
 
+        # Add widgets to the frame
         self.lobby_label.pack(padx=10, pady=5)
         self.lobby_listbox.pack(padx=10, pady=5)
         self.create_lobby_button.pack(padx=10, pady=5)
@@ -95,19 +101,20 @@ class ClientApp:
         while True:
             try:
                 # Receive list of available lobbies from the server
-                available_lobbies = self.client_socket.recv(1024).decode()
-                if available_lobbies:
-                    # Ensure we update the UI thread safely
-                    self.root.after(0, self.update_lobby_list, available_lobbies.split(','))
+                available_lobbies = self.client_socket.recv(1024).decode().split(',')
+                self.update_lobby_list(available_lobbies)
             except Exception as e:
                 print("Error while listening for updates:", e)
                 break
 
     def update_lobby_list(self, lobbies):
         # Clear the current list
-        if hasattr(self, 'lobby_listbox'):
-            self.lobby_listbox.delete(0, tk.END)
+        self.lobby_listbox.delete(0, tk.END)
 
+        # If no lobbies are available, show a message
+        if not lobbies or lobbies == ['']:
+            self.lobby_listbox.insert(tk.END, "No lobbies available.")
+        else:
             # Add lobbies to the listbox
             for lobby in lobbies:
                 if lobby:
