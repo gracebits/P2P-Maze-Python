@@ -1,6 +1,5 @@
 import pygame
-from maze import Maze
-from network import sio, connect_to_server, join_room, send_ready, start_game
+from network import sio, connect_to_server, send_ready, start_game
 from config import MAZE_WIDTH, MAZE_HEIGHT, CELL_SIZE, WHITE, BLUE, RED
 
 # Initialize Pygame
@@ -13,56 +12,51 @@ pygame.display.set_caption("Maze Escape")
 # Colors and fonts
 font = pygame.font.SysFont('Arial', 20)
 
-# Initialize the Maze
-maze = Maze()
+# Game lobby data
+current_room = None
+player_name = None
 
-# Player data (with example positions)
-players = {'Player1': (1, 1), 'Player2': (3, 3)}  # Example player positions
-current_player = 'Player1'
+# Event handler when joining a room
+def join_lobby(room_name, player_name):
+    sio.emit('join_lobby', {'player_name': player_name, 'room_name': room_name}, namespace='/game')
 
-# Draw player names above characters
-def draw_player(player_name, position):
-    x, y = position
-    name_surface = font.render(player_name, True, (255, 255, 255))  # White text
-    screen.blit(name_surface, (x * CELL_SIZE + CELL_SIZE // 4, y * CELL_SIZE - 20))  # Adjust position
-    color = BLUE if player_name == current_player else RED
-    pygame.draw.circle(screen, color, (x * CELL_SIZE + CELL_SIZE // 2, y * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 3)
+# Event handler to create a room
+def create_lobby(room_name, player_name):
+    sio.emit('create_lobby', {'player_name': player_name, 'room_name': room_name}, namespace='/game')
 
-# Main game loop
+# Event handler for when the game starts
+def on_game_start(data):
+    print("Game starting with maze:", data)
+    # Implement game initialization here
+
+# Main loop to interact with the server
 def main_game_loop():
+    global current_room, player_name
     running = True
     while running:
         screen.fill(WHITE)
 
-        # Draw the maze
-        maze.draw_maze(screen, font)
-
-        # Draw players
-        for player_name, position in players.items():
-            draw_player(player_name, position)
-
-        # Event handling
+        # Handle player input
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:  # Example: "R" to send ready signal
-                    send_ready('game_room', current_player)
-                elif event.key == pygame.K_s:  # Example: "S" to start game
-                    start_game('game_room')
+                if event.key == pygame.K_c:  # Create lobby example
+                    room_name = input("Enter the room name: ")
+                    player_name = input("Enter your name: ")
+                    create_lobby(room_name, player_name)
+                elif event.key == pygame.K_j:  # Join lobby example
+                    room_name = input("Enter the room name to join: ")
+                    player_name = input("Enter your name: ")
+                    join_lobby(room_name, player_name)
 
-        # Update the display
         pygame.display.update()
 
     pygame.quit()
 
-# Run the connection to the server
+# Connect and start the game client
 def start_client():
     connect_to_server()
-    join_room('Player1', 'game_room')
-    pygame.time.delay(1000)  # Wait for connection
-
-    # Start the game
     main_game_loop()
 
 # Entry point for the client script
