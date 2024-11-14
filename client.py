@@ -1,6 +1,6 @@
 import pygame
-from network import sio, connect_to_server, send_ready, start_game
 from config import MAZE_WIDTH, MAZE_HEIGHT, CELL_SIZE, WHITE, BLUE, RED
+from network import sio, connect_to_server, send_ready, start_game
 
 # Initialize Pygame
 pygame.init()
@@ -33,7 +33,9 @@ def on_game_start(data):
 def update_rooms(data):
     print("Available rooms:", data)
     # Display available rooms on the screen
-    # You can update the UI to show room names here
+    room_list = data
+    room_list_text = font.render(f"Available Rooms: {room_list}", True, (0, 0, 0))
+    screen.blit(room_list_text, (100, 100))
 
 # Event handler for when the player is ready
 def on_ready_status(data):

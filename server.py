@@ -33,10 +33,9 @@ def create_lobby(data):
 
     # If the room doesn't exist, create it
     if room_name not in rooms:
-        rooms[room_name] = {'players': [], 'ready_players': []}
+        rooms[room_name] = {'players': [player_name], 'ready_players': []}
         print(f"Lobby '{room_name}' created by {player_name}")
         join_room(room_name)
-        rooms[room_name]['players'].append(player_name)
         emit('update_rooms', rooms, namespace='/game')
         emit('join_lobby', {'room_name': room_name, 'players': rooms[room_name]['players']}, room=room_name, namespace='/game')
     else:
