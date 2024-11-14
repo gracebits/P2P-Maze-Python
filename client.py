@@ -29,6 +29,21 @@ def on_game_start(data):
     print("Game starting with maze:", data)
     # Implement game initialization here
 
+# Event handler to show available rooms
+def update_rooms(data):
+    print("Available rooms:", data)
+    # Display available rooms on the screen
+    # You can update the UI to show room names here
+
+# Event handler for when the player is ready
+def on_ready_status(data):
+    print(f"{data['player_name']} is ready")
+
+# Event handler for enabling the start button
+def enable_start(data):
+    if player_name == rooms[0]['players'][0]:  # If this is the creator
+        print("You can start the game now!")
+
 # Main loop to interact with the server
 def main_game_loop():
     global current_room, player_name

@@ -74,6 +74,15 @@
         .ready-button:disabled {
             background-color: #cccccc;
         }
+        .start-button {
+            margin-top: 15px;
+            padding: 8px 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -82,13 +91,13 @@
     <div class="lobby-container">
         <h2>Game Lobby</h2>
         <input type="text" id="playerName" placeholder="Enter your name" required>
-        <button id="createRoomBtn">Create Room</button>
+        <button id="joinRoomBtn" disabled>Join Room</button>
         <h3>Available Rooms</h3>
         <ul id="roomList" class="room-list">
             <!-- Room items will be added here dynamically -->
         </ul>
-        <button id="joinRoomBtn" class="ready-button" disabled>Join Room</button>
         <button id="readyBtn" class="ready-button" disabled>Ready</button>
+        <button id="startGameBtn" class="start-button" disabled>Start Game</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
@@ -96,47 +105,38 @@
         const socket = io.connect('http://127.0.0.1:5000/game');  // Change this to your server IP
 
         const playerNameInput = document.getElementById('playerName');
-        const createRoomBtn = document.getElementById('createRoomBtn');
         const joinRoomBtn = document.getElementById('joinRoomBtn');
         const readyBtn = document.getElementById('readyBtn');
+        const startGameBtn = document.getElementById('startGameBtn');
         const roomList = document.getElementById('roomList');
 
         let currentRoom = null;
-
-        // Event listener for creating a room
-        createRoomBtn.addEventListener('click', () => {
-            const playerName = playerNameInput.value.trim();
-            if (playerName && currentRoom === null) {
-                socket.emit('join', { player_name: playerName, room_name: playerName });
-                currentRoom = playerName;
-                joinRoomBtn.disabled = false;
-                readyBtn.disabled = false;
-            }
-        });
+        let playerName = null;
 
         // Event listener for joining a room
         joinRoomBtn.addEventListener('click', () => {
-            const playerName = playerNameInput.value.trim();
+            playerName = playerNameInput.value.trim();
             if (playerName && currentRoom !== null) {
-                socket.emit('join', { player_name: playerName, room_name: currentRoom });
-                readyBtn.disabled = false;
+                socket.emit('join_lobby', { player_name: playerName, room_name: currentRoom });
             }
         });
 
-        // Event listener for marking a player as ready
+        // Event listener for marking as ready
         readyBtn.addEventListener('click', () => {
-            const playerName = playerNameInput.value.trim();
-            if (playerName) {
-                socket.emit('ready', { player_name: playerName, room_name: currentRoom });
-            }
+            socket.emit('ready', { player_name: playerName, room_name: currentRoom });
         });
 
-        // Listen for updates on players and rooms
-        socket.on('update_players', (players) => {
+        // Event listener for starting the game
+        startGameBtn.addEventListener('click', () => {
+            socket.emit('start_game', { room_name: currentRoom });
+        });
+
+        // Listen for room updates
+        socket.on('update_rooms', (rooms) => {
             roomList.innerHTML = '';
-            for (let room in players) {
+            for (let room in rooms) {
                 const roomItem = document.createElement('li');
-                roomItem.textContent = room + ' - ' + players[room].join(', ');
+                roomItem.textContent = `${room} - ${rooms[room].players.length} players`;
                 roomItem.classList.add('room-item');
                 roomItem.addEventListener('click', () => {
                     currentRoom = room;
@@ -146,10 +146,20 @@
             }
         });
 
+        // Listen for player status (ready)
+        socket.on('ready_status', (data) => {
+            console.log(`${data.player_name} is ready`);
+        });
+
         // Listen for game start
         socket.on('start_game', (data) => {
             alert('The game is starting!');
-            // You can redirect to the game screen here
+            // Start the game logic (e.g., generate maze, etc.)
+        });
+
+        // Listen for enabling start button
+        socket.on('enable_start', (data) => {
+            startGameBtn.disabled = false;  // Enable the start button if all players are ready
         });
     </script>
 
