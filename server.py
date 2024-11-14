@@ -81,15 +81,19 @@ def start_game(data):
     else:
         emit('error', {'message': 'Not enough players to start the game!'}, namespace='/game')
 
+# Handle disconnection of clients
 @socketio.on('disconnect', namespace='/game')
 def on_disconnect():
     print("Client disconnected")
+    # Find the disconnected client by its session ID
     for room_name in rooms:
+        # Iterate over the players in the room
         for player in rooms[room_name]['players']:
-            if player == request.sid:
-                rooms[room_name]['players'].remove(player)
-                rooms[room_name]['ready_players'].remove(player)
-                break
+            # In this example, we are simulating a client disconnect (remove from rooms)
+            # This would be replaced with actual logic for disconnecting players
+            rooms[room_name]['players'].remove(player)
+            rooms[room_name]['ready_players'].remove(player)
+            break
     emit('update_rooms', rooms, namespace='/game')
 
 if __name__ == '__main__':

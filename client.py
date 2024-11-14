@@ -1,6 +1,6 @@
 import pygame
+import socketio
 from config import MAZE_WIDTH, MAZE_HEIGHT, CELL_SIZE, WHITE, BLUE, RED
-from network import sio, connect_to_server, send_ready, start_game
 
 # Initialize Pygame
 pygame.init()
@@ -11,6 +11,10 @@ pygame.display.set_caption("Maze Escape")
 
 # Colors and fonts
 font = pygame.font.SysFont('Arial', 20)
+
+# Setup for connecting to the server
+sio = socketio.Client()
+socket_url = 'http://127.0.0.1:5000/game'  # Update this if necessary
 
 # Game lobby data
 current_room = None
@@ -27,15 +31,20 @@ def create_lobby(room_name, player_name):
 # Event handler for when the game starts
 def on_game_start(data):
     print("Game starting with maze:", data)
-    # Implement game initialization here
+    # Start game logic can go here (e.g., generate maze, etc.)
 
-# Event handler to show available rooms
-def update_rooms(data):
-    print("Available rooms:", data)
-    # Display available rooms on the screen
-    room_list = data
-    room_list_text = font.render(f"Available Rooms: {room_list}", True, (0, 0, 0))
-    screen.blit(room_list_text, (100, 100))
+# Event handler for room updates (show available rooms)
+def update_rooms(rooms):
+    print("Available rooms:", rooms)
+    screen.fill(WHITE)  # Clear the screen
+
+    y_offset = 100
+    for room in rooms:
+        room_text = font.render(f"Room: {room} - {len(rooms[room]['players'])}/4 players", True, (0, 0, 0))
+        screen.blit(room_text, (100, y_offset))
+        y_offset += 30
+
+    pygame.display.update()
 
 # Event handler for when the player is ready
 def on_ready_status(data):
@@ -51,29 +60,36 @@ def main_game_loop():
     global current_room, player_name
     running = True
     while running:
-        screen.fill(WHITE)
+        screen.fill(WHITE)  # Clear the screen for each loop
 
         # Handle player input
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_c:  # Create lobby example
+                if event.key == pygame.K_c:  # Create lobby
                     room_name = input("Enter the room name: ")
                     player_name = input("Enter your name: ")
                     create_lobby(room_name, player_name)
-                elif event.key == pygame.K_j:  # Join lobby example
+                elif event.key == pygame.K_j:  # Join lobby
                     room_name = input("Enter the room name to join: ")
                     player_name = input("Enter your name: ")
                     join_lobby(room_name, player_name)
+                elif event.key == pygame.K_r:  # Ready up
+                    if player_name and current_room:
+                        sio.emit('ready', {'player_name': player_name, 'room_name': current_room})
 
-        pygame.display.update()
+        pygame.display.update()  # Update the display window
 
     pygame.quit()
 
 # Connect and start the game client
 def start_client():
-    connect_to_server()
+    sio.connect(socket_url)
+    sio.on('update_rooms', update_rooms)
+    sio.on('ready_status', on_ready_status)
+    sio.on('start_game', on_game_start)
+    sio.on('enable_start', enable_start)
     main_game_loop()
 
 # Entry point for the client script
