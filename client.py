@@ -1,4 +1,3 @@
-# client.py
 import pygame
 from maze import Maze
 from network import sio, connect_to_server, join_room, send_ready, start_game
@@ -17,9 +16,17 @@ font = pygame.font.SysFont('Arial', 20)
 # Initialize the Maze
 maze = Maze()
 
-# Player data
+# Player data (with example positions)
 players = {'Player1': (1, 1), 'Player2': (3, 3)}  # Example player positions
 current_player = 'Player1'
+
+# Draw player names above characters
+def draw_player(player_name, position):
+    x, y = position
+    name_surface = font.render(player_name, True, (255, 255, 255))  # White text
+    screen.blit(name_surface, (x * CELL_SIZE + CELL_SIZE // 4, y * CELL_SIZE - 20))  # Adjust position
+    color = BLUE if player_name == current_player else RED
+    pygame.draw.circle(screen, color, (x * CELL_SIZE + CELL_SIZE // 2, y * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 3)
 
 # Main game loop
 def main_game_loop():
@@ -31,10 +38,8 @@ def main_game_loop():
         maze.draw_maze(screen, font)
 
         # Draw players
-        for player, position in players.items():
-            x, y = position
-            color = BLUE if player == current_player else RED
-            pygame.draw.circle(screen, color, (x * CELL_SIZE + CELL_SIZE // 2, y * CELL_SIZE + CELL_SIZE // 2), CELL_SIZE // 3)
+        for player_name, position in players.items():
+            draw_player(player_name, position)
 
         # Event handling
         for event in pygame.event.get():

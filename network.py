@@ -1,4 +1,3 @@
-# network.py
 import socketio
 from config import SERVER_URL
 
