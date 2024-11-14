@@ -1,100 +1,92 @@
-from flask import Flask, render_template
-from flask_socketio import SocketIO, emit, join_room, leave_room
-from flask_cors import CORS
-import logging
+import socket
+import threading
+import config  # Import the configuration file
 
-app = Flask(__name__)
-app.secret_key = 'secret!'
-socketio = SocketIO(app, cors_allowed_origins="*")
-CORS(app)
+class Lobby:
+    def __init__(self, lobby_name, max_players):
+        self.lobby_name = lobby_name
+        self.players = []
+        self.max_players = max_players
+        self.ready_players = 0
+        self.started = False
 
-# Enable logging
-logging.basicConfig(level=logging.DEBUG)
+    def add_player(self, player_name):
+        if len(self.players) < self.max_players:
+            self.players.append(player_name)
+            return True
+        return False
 
-# Store rooms and player data
-rooms = {}  # Room name -> players data (list of players)
-max_players = 4  # Maximum players per lobby
+    def set_ready(self):
+        self.ready_players += 1
+        if self.ready_players == len(self.players):
+            self.start_game()
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+    def start_game(self):
+        self.started = True
+        return "Game Starting!"
 
-# Event when a client connects
-@socketio.on('connect', namespace='/game')
-def on_connect():
-    print("Client connected")
-    emit('update_rooms', rooms, namespace='/game')  # Send available rooms to the client
+class Server:
+    def __init__(self):
+        self.host = config.SERVER_IP  # Use the configuration from config.py
+        self.port = config.SERVER_PORT
+        self.lobbies = []
+        self.clients = []
+        self.max_players = config.MAX_PLAYERS
 
-# Event for creating a new lobby
-@socketio.on('create_lobby', namespace='/game')
-def create_lobby(data):
-    player_name = data['player_name']
-    room_name = data['room_name']
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.bind((self.host, self.port))
+        self.server_socket.listen(5)
+        print(f"Server listening on {self.host}:{self.port}")
 
-    # If the room doesn't exist, create it
-    if room_name not in rooms:
-        rooms[room_name] = {'players': [player_name], 'ready_players': []}
-        print(f"Lobby '{room_name}' created by {player_name}")
-        join_room(room_name)
-        emit('update_rooms', rooms, namespace='/game')
-        emit('join_lobby', {'room_name': room_name, 'players': rooms[room_name]['players']}, room=room_name, namespace='/game')
-    else:
-        emit('error', {'message': 'Room already exists!'}, namespace='/game')
+    def handle_client(self, client_socket, client_address):
+        client_socket.sendall("Welcome to the Lobby Server!\n".encode())
+        
+        while True:
+            lobby_list = [lobby.lobby_name for lobby in self.lobbies]
+            client_socket.sendall(f"Available lobbies: {lobby_list}\n".encode())
+            client_socket.sendall("Do you want to join a lobby or create a new one? (join/create): ".encode())
+            choice = client_socket.recv(1024).decode().strip()
 
-# Event for joining a lobby
-@socketio.on('join_lobby', namespace='/game')
-def join_lobby(data):
-    player_name = data['player_name']
-    room_name = data['room_name']
+            if choice == "create":
+                client_socket.sendall("Enter a name for the new lobby: ".encode())
+                lobby_name = client_socket.recv(1024).decode().strip()
+                new_lobby = Lobby(lobby_name, self.max_players)
+                self.lobbies.append(new_lobby)
+                client_socket.sendall(f"Lobby {lobby_name} created. Waiting for players...\n".encode())
+                break
+            elif choice == "join":
+                client_socket.sendall("Enter the name of the lobby to join: ".encode())
+                lobby_name = client_socket.recv(1024).decode().strip()
+                lobby = next((l for l in self.lobbies if l.lobby_name == lobby_name), None)
+                if lobby:
+                    if lobby.add_player(client_address[0]):
+                        client_socket.sendall(f"Joined lobby {lobby_name}. Waiting for players...\n".encode())
+                        break
+                    else:
+                        client_socket.sendall("Lobby is full, try another one.\n".encode())
+                else:
+                    client_socket.sendall("Lobby not found.\n".encode())
 
-    if room_name in rooms and len(rooms[room_name]['players']) < max_players:
-        rooms[room_name]['players'].append(player_name)
-        join_room(room_name)
-        emit('update_rooms', rooms, namespace='/game')
-        emit('join_lobby', {'room_name': room_name, 'players': rooms[room_name]['players']}, room=room_name, namespace='/game')
-    else:
-        emit('error', {'message': 'Room is full or does not exist!'}, namespace='/game')
+        while not lobby.started:
+            client_socket.sendall(f"Lobby {lobby_name}: {len(lobby.players)}/{lobby.max_players} players ready.\n".encode())
+            client_socket.sendall("Enter your name or code name: ".encode())
+            player_name = client_socket.recv(1024).decode().strip()
+            client_socket.sendall("Press Ready to start the game: ".encode())
+            ready = client_socket.recv(1024).decode().strip()
 
-# Event for a player to mark themselves as ready
-@socketio.on('ready', namespace='/game')
-def on_ready(data):
-    player_name = data['player_name']
-    room_name = data['room_name']
+            if ready.lower() == "ready":
+                lobby.set_ready()
+                if lobby.started:
+                    client_socket.sendall("All players are ready. The game is starting!\n".encode())
+                    break
 
-    if player_name not in rooms[room_name]['ready_players']:
-        rooms[room_name]['ready_players'].append(player_name)
-    
-    emit('ready_status', {'player_name': player_name, 'status': 'ready'}, room=room_name, namespace='/game')
+    def start(self):
+        while True:
+            client_socket, client_address = self.server_socket.accept()
+            print(f"Connection established with {client_address}")
+            client_thread = threading.Thread(target=self.handle_client, args=(client_socket, client_address))
+            client_thread.start()
 
-    # Check if all players are ready, and allow the room creator to start the game
-    if len(rooms[room_name]['ready_players']) == len(rooms[room_name]['players']):
-        emit('enable_start', {'room_name': room_name}, room=room_name, namespace='/game')
-
-# Event to start the game when the creator clicks start
-@socketio.on('start_game', namespace='/game')
-def start_game(data):
-    room_name = data['room_name']
-    if room_name in rooms and len(rooms[room_name]['players']) >= 2:
-        # Game starting logic (e.g., generating maze data)
-        maze_data = {'maze': [[0, 1, 1], [0, 0, 1], [1, 0, 0]]}  # Sample maze
-        emit('start_game', maze_data, room=room_name, namespace='/game')
-    else:
-        emit('error', {'message': 'Not enough players to start the game!'}, namespace='/game')
-
-# Handle disconnection of clients
-@socketio.on('disconnect', namespace='/game')
-def on_disconnect():
-    print("Client disconnected")
-    # Find the disconnected client by its session ID
-    for room_name in rooms:
-        # Iterate over the players in the room
-        for player in rooms[room_name]['players']:
-            # In this example, we are simulating a client disconnect (remove from rooms)
-            # This would be replaced with actual logic for disconnecting players
-            rooms[room_name]['players'].remove(player)
-            rooms[room_name]['ready_players'].remove(player)
-            break
-    emit('update_rooms', rooms, namespace='/game')
-
-if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    server = Server()
+    server.start()
