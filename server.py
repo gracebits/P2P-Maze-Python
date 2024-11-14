@@ -43,6 +43,15 @@ class Server:
         self.server_socket.listen(5)
         print(f"Server listening on {self.host}:{self.port}")
 
+    def broadcast_lobby_list(self):
+        # Broadcast the list of available lobbies to all clients
+        available_lobbies = ",".join([lobby.lobby_name for lobby in self.lobbies])
+        for client_socket in self.clients.values():
+            try:
+                client_socket.sendall(available_lobbies.encode())
+            except Exception as e:
+                print(f"Error broadcasting to client: {e}")
+
     def handle_client(self, client_socket, client_address):
         # Handle client interaction
         player_name = client_socket.recv(1024).decode()
@@ -51,8 +60,7 @@ class Server:
         self.clients[client_address] = player_name
 
         # Send list of available lobbies
-        available_lobbies = ",".join([lobby.lobby_name for lobby in self.lobbies])
-        client_socket.sendall(available_lobbies.encode())
+        self.broadcast_lobby_list()
 
         while True:
             try:
@@ -63,6 +71,8 @@ class Server:
                     new_lobby = Lobby(lobby_name)
                     self.lobbies.append(new_lobby)
                     client_socket.sendall(f"Lobby {lobby_name} created.".encode())
+                    # After creating, broadcast updated lobby list
+                    self.broadcast_lobby_list()
                     break
                 elif request.startswith("join"):
                     lobby_name = request.split(" ")[1]
@@ -70,9 +80,9 @@ class Server:
                     if lobby and not lobby.is_full():
                         lobby.add_player(player_name)
                         client_socket.sendall(f"Joined lobby {lobby_name}".encode())
+                        # After joining, broadcast updated lobby list
+                        self.broadcast_lobby_list()
                         break
-                    else:
-                        client_socket.sendall("Lobby is full or doesn't exist.".encode())
                 elif request.startswith("ready"):
                     lobby_name = request.split(" ")[1]
                     lobby = next((l for l in self.lobbies if l.lobby_name == lobby_name), None)
