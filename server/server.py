@@ -1,5 +1,12 @@
 # server.py
-import threading
+
+import sys
+import os
+
+# Add the parent directory to sys.path to allow module discovery
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Now the network module should be accessible
 from network.connection import Connection
 from network.message_handler import MessageHandler
 from server.lobby_manager import LobbyManager
